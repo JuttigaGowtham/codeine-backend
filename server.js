@@ -13,20 +13,25 @@ const progressRoutes = require("./routes/progress");
 const app = express();
 app.use(express.json());
 
-// List of allowed frontend URLs
+// ===== Allowed Origins =====
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://codeine-9nep.vercel.app",
-  "https://codeine-9nep-git-main-saikumars-projects-4be89848.vercel.app",
-  "https://codeine-9nep-fvcxkre1q-saikumars-projects-4be89848.vercel.app",
+  /\.vercel\.app$/, // allow all Vercel preview deployments
 ];
 
+// ===== CORS Middleware =====
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (
+        !origin ||
+        allowedOrigins.some((o) =>
+          typeof o === "string" ? o === origin : o.test(origin)
+        )
+      ) {
         callback(null, true);
       } else {
+        console.error("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
@@ -35,18 +40,21 @@ app.use(
   })
 );
 
-// MongoDB connection
+// ===== MongoDB Connection =====
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Routes
+// ===== Routes =====
 app.use("/auth", authRoutes);
 app.use("/leaderboard", leaderboardRoutes);
 app.use("/", progressRoutes);
 
-// Code execution endpoint
+// ===== Code Execution Endpoint =====
 app.post("/run", async (req, res) => {
   const { language, code, input } = req.body;
 
@@ -61,7 +69,6 @@ app.post("/run", async (req, res) => {
   const dir = path.join(__dirname, "temp");
   await fs.mkdir(dir, { recursive: true });
 
-  // Ensure consistent unique ID
   const uniqueId = Date.now();
   let fileName, execFile, command;
 
@@ -102,7 +109,6 @@ app.post("/run", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
-    // Cleanup
     setTimeout(async () => {
       try {
         if (fileName) await fs.unlink(fileName).catch(() => {});
@@ -111,7 +117,9 @@ app.post("/run", async (req, res) => {
           await fs.unlink(execFile).catch(() => {});
         }
         if (language === "java") {
-          await fs.unlink(path.join(dir, `Solution${uniqueId}.class`)).catch(() => {});
+          await fs
+            .unlink(path.join(dir, `Solution${uniqueId}.class`))
+            .catch(() => {});
         }
       } catch (e) {
         console.error("Cleanup error:", e);
@@ -121,4 +129,4 @@ app.post("/run", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
