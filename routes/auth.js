@@ -6,15 +6,17 @@ const User = require("../models/User");
 const router = express.Router();
 const SECRET = process.env.JWT_SECRET || "secretkey";
 
-// Register
+// ✅ Register
 router.post("/register", async (req, res) => {
   try {
     const { rollNo, name, password } = req.body;
     console.log("Register request:", req.body);
 
+    // Check if user exists
     const existing = await User.findOne({ rollNo });
     if (existing) return res.status(400).json({ message: "User already exists" });
 
+    // Hash password
     const hash = await bcrypt.hash(password, 10);
     const user = new User({ rollNo, name, passwordHash: hash });
 
@@ -28,7 +30,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Login
+// ✅ Login
 router.post("/login", async (req, res) => {
   try {
     const { rollNo, password } = req.body;
@@ -39,6 +41,7 @@ router.post("/login", async (req, res) => {
     if (!valid) return res.status(400).json({ message: "Invalid password" });
 
     const token = jwt.sign({ id: user._id }, SECRET, { expiresIn: "1d" });
+
     res.json({
       message: "Login successful",
       token,
